@@ -1,5 +1,46 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import GUI from 'lil-gui';
+import {gsap} from 'gsap';
+// 0. add debug from lil-gui
+
+const guiDebugger = new GUI({
+    width: 300,
+    title: 'debug ui',
+    closeFolders: false,
+});
+guiDebugger.close();
+guiDebugger.hide();
+
+window.onkeydown = (event)=>{
+    if (event.key == 'h') {
+        if (guiDebugger._hidden){
+            guiDebugger.show();
+        } else {
+            guiDebugger.hide();
+        }
+    }
+}
+
+const cubeDebugTweaks = guiDebugger.addFolder("cube debug");
+cubeDebugTweaks.close(); // default to close
+const debugObject = {
+    color:'#3a6ea6',
+    subdivision:2,
+    spinMeshObj:null,
+    setSpinMeshObj(meshObj){
+        this.spinMeshObj=meshObj;
+    },
+    spin() {
+        if (this.spinMeshObj===null){
+            return;
+        }
+        gsap.to(this.spinMeshObj.rotation, {y:this.spinMeshObj.rotation.y + Math.PI*2})
+        
+    }
+}; // put all thoese properties we need to take cared of during debug
+
+
 
 // viewport size
 const sizes= {
@@ -77,11 +118,11 @@ window.ondblclick = (e)=>{
     }
 };
 
-// add axes
+// 9. add axes for debug view of the scene
 const axes = new THREE.AxesHelper(100);
 scene.add(axes);
 
-// init your geometries for the game
+// 99. init your geometries for the game
 const obj = new THREE.BoxGeometry(3,4,5,2,2,2);
 const material = new THREE.MeshBasicMaterial({color:0xff0000, wireframe:true});
 const mesh = new THREE.Mesh(obj, material);
@@ -115,7 +156,7 @@ const geometry = new THREE.BufferGeometry();
 geometry.setAttribute('position', positionsAttribute);// shader attribute position
 
 const myItemMesh = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({
-    color:0x00ff00, wireframe:true,
+    color:debugObject.color, wireframe:true,
 }))
 scene.add(myItemMesh)
 
@@ -133,13 +174,13 @@ const attributeNew = new THREE.BufferAttribute(arrayNew, vertexSize);
 geometryNew.setAttribute("position", attributeNew);
 
 const myItemMeshNew = new THREE.Mesh(geometryNew, new THREE.MeshBasicMaterial({
-    color:0x0000ff, wireframe:true,
+    color:debugObject.color, wireframe:true,
 }))
 scene.add(myItemMeshNew)
 
 const geometry33 = new THREE.SphereGeometry(1)
 const myItemMeshNew2 = new THREE.Mesh(geometry33, new THREE.MeshBasicMaterial({
-    color:0x00ffff, wireframe:true,
+    color:debugObject.color, wireframe:true,
 }))
 scene.add(myItemMeshNew2)
 
@@ -161,7 +202,38 @@ image.src = "/textures/door/color.jpg"
 const texturedBox = new THREE.BoxGeometry(3,3,3);
 const texturedBoxMesh = new THREE.Mesh(texturedBox, new THREE.MeshBasicMaterial({
     map:texture
-}))
+}));
+// add gui debug controller on mesh.position.y, guiDebugger only works on js object properties
+cubeDebugTweaks.add(texturedBoxMesh.position, 'y').min(-3).max(3).step(0.01).name('elevation');
+
+let myObj = {
+    myVariable:1234,
+};
+cubeDebugTweaks.add(myObj, 'myVariable');
+
+cubeDebugTweaks.add(texturedBoxMesh, "visible");
+cubeDebugTweaks.add(texturedBoxMesh.material, "wireframe");
+
+// threejs is using sRGB, value from lil-gui value is not the one can be use in threejs, use color.getHexString to get the correct color
+// cubeDebugTweaks.addColor(texturedBoxMesh.material, 'color').onChange((value)=>{// value here is : texturedBoxMesh.material.color
+//     console.log('value is: ', texturedBoxMesh.material.color.getHexString());
+//     console.log(value.getHexString());
+// });
+cubeDebugTweaks.addColor(debugObject, 'color').onChange((value)=>{// value here is : texturedBoxMesh.material.color
+    texturedBoxMesh.material.color.set(debugObject.color); // use set rather than assignment to ask threejs to handle the color change
+    // console.log(debugObject.color); // same as value
+    // console.log(value);
+});
+
+debugObject.setSpinMeshObj(texturedBoxMesh);
+cubeDebugTweaks.add(debugObject, 'spin');
+
+cubeDebugTweaks.add(debugObject, 'subdivision').min(1).max(20).step(1).onFinishChange((value)=>{ // fired when release the dragging click
+    texturedBoxMesh.geometry.dispose(); // gc the old one;
+    texturedBoxMesh.geometry = new THREE.BoxGeometry(1,1,1, debugObject.subdivision,debugObject.subdivision,debugObject.subdivision);
+});
+
+
 texturedBoxMesh.position.x = 10;
 scene.add(texturedBoxMesh);
 
